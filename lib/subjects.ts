@@ -1,7 +1,5 @@
 import { getSupabase } from "./supabase/client";
 
-export type Period = "p1" | "p2";
-
 export type Link = { label: string; kind: string; href: string };
 
 export type Exam = {
@@ -13,23 +11,27 @@ export type Exam = {
 
 export type Subject = {
   id: string;
-  code: string;
+  code: string | null;
   name: string;
-  prof: string;
-  exams: Record<Period, Exam>;
+  prof: string | null;
+  exams: Record<string, Exam>;
+  categoryOrder: string[];
 };
 
 type SubjectRow = {
   id: string;
-  code: string;
+  code: string | null;
   name: string;
-  prof: string;
+  professors: { name: string } | null;
   exams: {
-    period: Period;
+    category: string;
     exam_date: string;
     when_label: string;
     topics: { label: string; sort_order: number }[];
-    materials: { label: string; kind: string; href: string; sort_order: number }[];
+    exam_materials: {
+      sort_order: number;
+      materials: { label: string; kind: string; href: string };
+    }[];
   }[];
 };
 
@@ -39,11 +41,12 @@ export async function getSubjects(): Promise<Subject[]> {
     .from("subjects")
     .select(
       `
-      id, code, name, prof,
+      id, code, name,
+      professors ( name ),
       exams (
-        period, exam_date, when_label,
+        category, exam_date, when_label,
         topics ( label, sort_order ),
-        materials ( label, kind, href, sort_order )
+        exam_materials ( sort_order, materials ( label, kind, href ) )
       )
     `
     )
@@ -53,17 +56,36 @@ export async function getSubjects(): Promise<Subject[]> {
   if (error) throw error;
 
   return data.map((row) => {
-    const exams = {} as Record<Period, Exam>;
+    const exams: Record<string, Exam> = {};
+    const categoryOrder: string[] = [];
     for (const exam of row.exams) {
-      exams[exam.period] = {
+      categoryOrder.push(exam.category);
+      exams[exam.category] = {
         date: exam.exam_date,
         when: exam.when_label,
         topics: [...exam.topics].sort((a, b) => a.sort_order - b.sort_order).map((t) => t.label),
-        links: [...exam.materials]
+        links: [...exam.exam_materials]
           .sort((a, b) => a.sort_order - b.sort_order)
-          .map((m): Link => ({ label: m.label, kind: m.kind, href: m.href })),
+          .map((em): Link => ({ label: em.materials.label, kind: em.materials.kind, href: em.materials.href })),
       };
     }
-    return { id: row.id, code: row.code, name: row.name, prof: row.prof, exams };
+    return {
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      prof: row.professors?.name ?? null,
+      exams,
+      categoryOrder,
+    };
   });
+}
+
+export function getCategoryOrder(subjects: Subject[]): string[] {
+  const seen: string[] = [];
+  for (const subject of subjects) {
+    for (const category of subject.categoryOrder) {
+      if (!seen.includes(category)) seen.push(category);
+    }
+  }
+  return seen;
 }

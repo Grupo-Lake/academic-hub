@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { Period, Subject } from "@/lib/subjects";
+import { useMemo, useState } from "react";
+import { getCategoryOrder, type Subject } from "@/lib/subjects";
 
 const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
@@ -15,7 +15,8 @@ function fmt(dateStr: string): string {
 }
 
 export default function StudyHub({ subjects: DATA }: { subjects: Subject[] }) {
-  const [period, setPeriod] = useState<Period>("p1");
+  const categoryOrder = useMemo(() => getCategoryOrder(DATA), [DATA]);
+  const [category, setCategory] = useState<string>(() => categoryOrder[0] ?? "");
   const [open, setOpen] = useState<Record<string, boolean>>({ bd: true });
   const [done, setDone] = useState<Record<string, boolean>>({});
 
@@ -23,8 +24,8 @@ export default function StudyHub({ subjects: DATA }: { subjects: Subject[] }) {
   today.setHours(12, 0, 0, 0);
 
   const sorted = DATA
-    .filter((subject) => subject.exams?.[period])
-    .sort((a, b) => a.exams[period].date.localeCompare(b.exams[period].date));
+    .filter((subject) => subject.exams?.[category])
+    .sort((a, b) => a.exams[category].date.localeCompare(b.exams[category].date));
 
   if (sorted.length === 0) {
     return (
@@ -57,9 +58,9 @@ export default function StudyHub({ subjects: DATA }: { subjects: Subject[] }) {
   let doneCount = 0;
   let totalCount = 0;
   const subjects = sorted.map((s) => {
-    const exam = s.exams[period];
+    const exam = s.exams[category];
     const topics = exam.topics.map((label, i) => {
-      const key = `${s.id}-${period}-${i}`;
+      const key = `${s.id}-${category}-${i}`;
       const isDone = !!done[key];
       totalCount++;
       if (isDone) doneCount++;
@@ -78,11 +79,11 @@ export default function StudyHub({ subjects: DATA }: { subjects: Subject[] }) {
     };
   });
 
-  const next = sorted.find((s) => daysUntil(s.exams[period].date, today) >= 0) ?? sorted[0];
-  const nextExam = next.exams[period];
+  const next = sorted.find((s) => daysUntil(s.exams[category].date, today) >= 0) ?? sorted[0];
+  const nextExam = next.exams[category];
   const nextDays = daysUntil(nextExam.date, today);
   const overallPct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
-  const periodLabel = period.toUpperCase();
+  const periodLabel = category.toUpperCase();
 
   function toggleSubject(id: string) {
     setOpen((s) => ({ ...s, [id]: !s[id] }));
@@ -154,10 +155,10 @@ export default function StudyHub({ subjects: DATA }: { subjects: Subject[] }) {
             className="flex gap-1 rounded-full"
             style={{ background: "var(--surface-sunken)", padding: 4 }}
           >
-            {(["p1", "p2"] as Period[]).map((p) => (
+            {categoryOrder.map((c) => (
               <button
-                key={p}
-                onClick={() => setPeriod(p)}
+                key={c}
+                onClick={() => setCategory(c)}
                 className="cursor-pointer border-0"
                 style={{
                   fontFamily: "var(--font-mono)",
@@ -166,13 +167,13 @@ export default function StudyHub({ subjects: DATA }: { subjects: Subject[] }) {
                   letterSpacing: "0.06em",
                   padding: "7px 18px",
                   borderRadius: "var(--radius-pill)",
-                  background: period === p ? "var(--surface-card)" : "transparent",
-                  color: period === p ? "var(--lake-700)" : "var(--ink-500)",
-                  boxShadow: period === p ? "var(--shadow-xs)" : "none",
+                  background: category === c ? "var(--surface-card)" : "transparent",
+                  color: category === c ? "var(--lake-700)" : "var(--ink-500)",
+                  boxShadow: category === c ? "var(--shadow-xs)" : "none",
                   transition: "all .15s ease",
                 }}
               >
-                {p.toUpperCase()}
+                {c.toUpperCase()}
               </button>
             ))}
           </div>
