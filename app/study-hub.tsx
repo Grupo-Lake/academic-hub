@@ -22,7 +22,36 @@ export default function StudyHub({ subjects: DATA }: { subjects: Subject[] }) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
 
-  const sorted = [...DATA].sort((a, b) => a.exams[period].date.localeCompare(b.exams[period].date));
+  const sorted = DATA
+    .filter((subject) => subject.exams?.[period])
+    .sort((a, b) => a.exams[period].date.localeCompare(b.exams[period].date));
+
+  if (sorted.length === 0) {
+    return (
+      <div
+        className="min-h-screen flex justify-center px-[18px] pt-10 pb-14"
+        style={{ background: "var(--grad-mist)" }}
+      >
+        <main className="w-full max-w-[440px] flex flex-col items-center gap-3 text-center">
+          <h1
+            className="m-0"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 400,
+              fontSize: 34,
+              color: "var(--text-strong)",
+            }}
+          >
+            Hub de estudos
+          </h1>
+          <p className="m-0" style={{ color: "var(--ink-500)" }}>
+            Nenhuma prova cadastrada para este período.
+          </p>
+        </main>
+      </div>
+    );
+  }
+
   const anyOpen = sorted.some((s) => open[s.id]);
 
   let doneCount = 0;
